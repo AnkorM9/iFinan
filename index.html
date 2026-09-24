@@ -280,6 +280,7 @@ h1,h2,h3{margin:0;font-weight:600;text-wrap:balance}
 .field label{font-size:.8rem;font-weight:600;color:var(--muted)}
 .field input,.field select,.field textarea{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:11px 12px;width:100%;font-size:16px}
 .frow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+[data-for]:not([hidden]),[data-cf]:not([hidden]){display:flex;flex-direction:column;gap:12px}
 .seg{display:grid;grid-template-columns:1fr 1fr;background:var(--surface-2);border-radius:12px;padding:3px}
 .seg button{border:0;background:none;padding:9px;border-radius:10px;font-weight:600;color:var(--muted)}
 .seg button[aria-pressed="true"].in{background:var(--surface);color:var(--in);box-shadow:var(--shadow)}
@@ -307,8 +308,8 @@ h1,h2,h3{margin:0;font-weight:600;text-wrap:balance}
 const CAT_GASTO=["Vivienda","Comida","Transporte","Servicios","Suscripciones","Salud","Entretenimiento","Ropa","Educación","Deudas","Otros"];
 const CAT_INGRESO=["Sueldo","Honorarios","Ventas","Inversiones","Otros ingresos"];
 const TIPOS_CUENTA={debito:"Débito",efectivo:"Efectivo",credito:"Tarjeta de crédito",inversion:"Inversión"};
-const TIPO_DEUDA={unico:"Pago único",msi:"Meses sin intereses",mensual:"Mensual",quincenal:"Quincenal",semanal:"Semanal"};
-const PERIODO={unico:"pago único",msi:"al mes",mensual:"al mes",quincenal:"por quincena",semanal:"por semana"};
+const TIPO_DEUDA={tarjeta:"Tarjeta de crédito",unico:"Pago único",msi:"Meses sin intereses",mensual:"Mensual",quincenal:"Quincenal",semanal:"Semanal"};
+const PERIODO={tarjeta:"al mes",unico:"pago único",msi:"al mes",mensual:"al mes",quincenal:"por quincena",semanal:"por semana"};
 const DIAS=["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
 const TABS=["inicio","movimientos","analisis","presupuesto","deudas","cuentas","metas","ajustes"].map(k=>[k]);
 const MXN=new Intl.NumberFormat("es-MX",{style:"currency",currency:"MXN",minimumFractionDigits:2,maximumFractionDigits:2});
@@ -355,7 +356,7 @@ function occDeuda(d,K,base){
 }
 function occDeudaRaw(d,K,base){
   switch(d.tipo){
-    case"mensual":case"msi":return monthlyIn(d.dia,K);
+    case"tarjeta":case"mensual":case"msi":return monthlyIn(d.dia,K);
     case"quincenal":return[qStart(K)];
     case"semanal":return weeklyIn(d.diaSemana,K);
     case"unico":{const k=qOf(d.fecha);if(k===K)return[d.fecha];if(K===base&&k<base)return[d.fecha];return[]}
@@ -443,7 +444,7 @@ function ejemplo(){
       {id:"f3",nombre:"Internet",monto:544.50,categoria:"Servicios",frecuencia:"mensual",dia:22},
       {id:"f4",nombre:"Streaming",monto:124,categoria:"Suscripciones",frecuencia:"mensual",dia:13}],
     deudas:[
-      {id:"d1",nombre:"TDC Oro",acreedor:"Banco",tipo:"mensual",pago:2100,dia:30,montoInicial:42000},
+      {id:"d1",nombre:"TDC Oro",acreedor:"Banco",tipo:"tarjeta",minimo:2100,noIntereses:9800,plan:"minimo",pago:2100,dia:30,montoInicial:42000},
       {id:"d2",nombre:"Celular a 18 MSI",acreedor:"Tienda",tipo:"msi",pago:1188,pagosTotales:18,pagosPrevios:3,dia:15,montoInicial:1188*15},
       {id:"d3",nombre:"Préstamo en app",acreedor:"App de préstamos",tipo:"semanal",pago:450,diaSemana:5,montoInicial:4500},
       {id:"d4",nombre:"Tienda departamental",acreedor:"Tienda",tipo:"quincenal",pago:750,montoInicial:12000},
@@ -736,8 +737,9 @@ function vDeudas(){
     return`<article class="card"><div class="top"><div><h3>${esc(d.nombre)}</h3><span class="sub">${esc(d.acreedor||"")}${tj?` · tarjeta ${esc(tj.nombre)}`:""}</span></div><span class="chip ${done?"ok":"pri"}">${done?"Liquidada":TIPO_DEUDA[d.tipo]}</span></div>
       <div><span class="muted" style="font-size:.78rem">${tj?"Adeudo":"Saldo pendiente"}</span><div class="bigamt amt ${done?"pos":""}">${money(s)}</div></div>
       <div class="brow"><div class="t"><span class="muted">${prog.txt}</span><span class="num">${Math.round(Math.min(100,prog.p))}%</span></div><div class="bar"><i class="${prog.cls}" style="width:${Math.min(100,prog.p)}%"></i></div></div>
-      <div class="kv"><div><span>Pago ${PERIODO[d.tipo]}</span><b>${money(d.tipo==="unico"?s:d.pago)}</b></div><div><span>Siguiente pago</span><b>${sp?`${shortDate(sp.fecha)}`:"—"}</b><span>${sp?esc(qName(sp.q)):""}</span></div><div><span>Calendario</span><b>${cuando}</b></div><div><span>Pagado a la fecha</span><b>${money(pagado)}</b></div></div>
-      <div class="foot">${done?"":`<button class="btn small primary" data-pay-deuda="${d.id}">Registrar pago</button>`}<button class="btn small ghost" data-edit-deuda="${d.id}">Editar</button><button class="btn small ghost danger" data-del-deuda="${d.id}">Eliminar</button></div></article>`}).join("");
+      ${d.tipo==="tarjeta"?`<div class="kv"><div><span>Pago mínimo</span><b>${money(d.minimo)}</b></div><div><span>Para no generar intereses</span><b>${d.noIntereses?money(d.noIntereses):"—"}</b></div></div>`:""}
+      <div class="kv"><div><span>${d.tipo==="tarjeta"?`Vas a pagar · ${esc(PLANES[d.plan]||"").replace("Pago para no generar intereses","sin intereses").replace("Pago mínimo","mínimo").toLowerCase()}`:`Pago ${PERIODO[d.tipo]}`}</span><b>${money(d.tipo==="unico"?s:d.pago)}</b></div><div><span>Siguiente pago</span><b>${sp?`${shortDate(sp.fecha)}`:"—"}</b><span>${sp?esc(qName(sp.q)):""}</span></div><div><span>Calendario</span><b>${cuando}</b></div><div><span>Pagado a la fecha</span><b>${money(pagado)}</b></div></div>
+      <div class="foot">${done?"":`<button class="btn small primary" data-pay-deuda="${d.id}">Registrar pago</button>`}${d.tipo==="tarjeta"?`<button class="btn small" data-edo="${d.id}">Estado de cuenta</button>`:""}<button class="btn small ghost" data-edit-deuda="${d.id}">Editar</button><button class="btn small ghost danger" data-del-deuda="${d.id}">Eliminar</button></div></article>`}).join("");
   return`${topbar("Deudas","",addBtn("new-deuda","Nueva deuda"))}
   <section class="hero"><div class="lbl"><span>Deuda total</span><button data-act="eye" aria-label="Ocultar montos">${prefs.oculto?IC.eyeOff:IC.eye}</button></div><div class="amount amt">${money(tot)}</div>
     <div class="delta">Por pagar esta quincena <b>${money0(qDeuda)}</b> · pagado ${orig?Math.round(pag/orig*100):0}% del total</div></section>
@@ -838,38 +840,78 @@ function payForm(o){
 }
 function pagar(kind,id,K,monto,fecha){
   const f=K>=CURQ?TODAY:fecha;
-  if(kind==="deuda"){const d=S.deudas.find(x=>x.id===id);return payForm({titulo:`Pagar · ${d.nombre}`,tipo:"gasto",categoria:"Deudas",desc:d.nombre,link:{deudaId:id},q:K,monto,fecha:f,nota:`Saldo pendiente ${money(saldo(d))}. El pago se descuenta del saldo y se registra como gasto.`})}
+  if(kind==="deuda"){const d=S.deudas.find(x=>x.id===id);return payForm({titulo:`Pagar · ${d.nombre}`,tipo:"gasto",categoria:"Deudas",desc:d.nombre,link:{deudaId:id},q:K,monto,fecha:f,nota:d.tipo==="tarjeta"?`Deuda total ${money(saldo(d))} · mínimo ${money(d.minimo)}${d.noIntereses?` · para no generar intereses ${money(d.noIntereses)}`:""}. Puedes cambiar el monto.`:`Saldo pendiente ${money(saldo(d))}. El pago se descuenta del saldo y se registra como gasto.`})}
   if(kind==="fijo"){const x=S.fijos.find(y=>y.id===id);return payForm({titulo:`Pagar · ${x.nombre}`,tipo:"gasto",categoria:x.categoria,desc:x.nombre,link:{fijoId:id},q:K,monto,fecha:f})}
   const i=S.ingresosFijos.find(y=>y.id===id);payForm({titulo:`Recibir · ${i.nombre}`,tipo:"ingreso",categoria:i.categoria,desc:i.nombre,link:{ingresoId:id},q:K,monto,fecha:f});
 }
 
+const PLANES={minimo:"Pago mínimo",nointereses:"Pago para no generar intereses",otro:"Otro monto"};
+function tarjetaCampos(d){
+  const s=d?saldo(d):"";
+  return`<div class="frow">${field("tSaldo","Deuda total hoy",`<input id="tSaldo" name="tSaldo" inputmode="decimal" value="${s}" placeholder="Ej. 38000">`)}${field("tLim","Línea de crédito",`<input id="tLim" name="tLim" inputmode="decimal" value="${d&&tarjetaDe(d)&&tarjetaDe(d).limite||""}" placeholder="Ej. 40000">`)}</div>
+   <div class="frow">${field("tMin","Pago mínimo",`<input id="tMin" name="tMin" inputmode="decimal" value="${d&&d.minimo||""}">`)}${field("tNoInt","Para no generar intereses",`<input id="tNoInt" name="tNoInt" inputmode="decimal" value="${d&&d.noIntereses||""}" placeholder="Opcional">`)}</div>
+   ${field("tPlan","¿Cuánto vas a pagar?",`<select id="tPlan" name="tPlan">${opt(Object.entries(PLANES),d&&d.plan||"minimo")}</select>`)}
+   <div id="tOtroWrap">${field("tOtro","Monto que vas a pagar",`<input id="tOtro" name="tOtro" inputmode="decimal" value="${d&&d.plan==="otro"?d.pago:""}">`)}</div>
+   <p class="hint">El pago mínimo de tu estado de cuenta ya incluye las mensualidades de tus compras a meses; no las registres aparte para no contarlas dos veces.</p>`;
+}
+function leerTarjeta(fd){
+  const sa=num(fd.tSaldo),mi=num(fd.tMin),ni=fd.tNoInt?num(fd.tNoInt):0,L=fd.tLim?num(fd.tLim):0,plan=fd.tPlan;
+  if(!(sa>=0))return"Escribe la deuda total de la tarjeta.";
+  if(!(mi>0))return"Escribe el pago mínimo de tu estado de cuenta.";
+  if(fd.tNoInt&&!(ni>0))return"El pago para no generar intereses debe ser un número.";
+  if(fd.tLim&&!(L>0))return"La línea de crédito debe ser un número mayor a cero.";
+  let pago=mi;if(plan==="nointereses"){if(!(ni>0))return"Escribe el pago para no generar intereses.";pago=ni}
+  if(plan==="otro"){pago=num(fd.tOtro);if(!(pago>0))return"Escribe el monto que vas a pagar."}
+  return{saldo:sa,minimo:mi,noIntereses:ni||0,plan,pago,limite:L};
+}
+function syncTarjeta(rec,L){
+  const c=S.cuentas.find(x=>x.tipo==="credito"&&x.deudaId===rec.id);
+  if(c){if(L)S.cuentas=S.cuentas.map(x=>x.id===c.id?{...x,limite:L}:x);return}
+  S.cuentas=[...S.cuentas,{id:uid(),nombre:rec.nombre,tipo:"credito",saldoInicial:0,limite:L||0,deudaId:rec.id,vinculoTs:Date.now()}];
+}
+function bindPlan(){const u=()=>{const w=document.getElementById("tOtroWrap");if(w)w.hidden=document.getElementById("tPlan").value!=="otro"};const p=document.getElementById("tPlan");if(p){p.onchange=u;u()}}
+/* Actualizar con el estado de cuenta del mes */
+function edoForm(d){
+  openModal(`Estado de cuenta · ${d.nombre}`,tarjetaCampos(d)+field("tDia","Fecha límite de pago (día)",`<input id="tDia" name="dia" inputmode="numeric" value="${d.dia||30}">`),fd=>{
+    const t=leerTarjeta(fd);if(typeof t==="string")return t;const dia=parseInt(fd.dia);if(!(dia>=1&&dia<=31))return"El día de pago debe estar entre 1 y 31.";
+    const rec={...d,minimo:t.minimo,noIntereses:t.noIntereses,plan:t.plan,pago:t.pago,dia,montoInicial:r2(t.saldo+pagadoDeuda(d)-cargos(d))};
+    S.deudas=S.deudas.map(x=>x.id===d.id?rec:x);syncTarjeta(rec,t.limite);modify();toast("Estado de cuenta actualizado");
+  });
+  bindPlan();
+}
 function deudaForm(d){
-  const t=d?d.tipo:"msi",s=d?saldo(d):"",paidSum=d?pagadoDeuda(d):0,paidCnt=d?linked("deudaId",d.id).length:0;
+  const t=d?d.tipo:"tarjeta",s=d?saldo(d):"",paidSum=d?pagadoDeuda(d):0,paidCnt=d?linked("deudaId",d.id).length:0,carg=d?cargos(d):0;
   const g=(tipos,html)=>`<div data-for="${tipos}">${html}</div>`;
+  const orden=["tarjeta","msi","mensual","quincenal","semanal","unico"].map(k=>[k,TIPO_DEUDA[k]]);
   openModal(d?"Editar deuda":"Nueva deuda",`
    ${field("dNom","Nombre",`<input id="dNom" name="nombre" value="${esc(d?d.nombre:"")}" placeholder="Ej. TDC Oro, celular, préstamo">`)}
    ${field("dAcr","Acreedor (opcional)",`<input id="dAcr" name="acreedor" value="${esc(d?d.acreedor:"")}" placeholder="Banco, tienda, persona…">`)}
-   ${field("dTipo","Tipo de pago",`<select id="dTipo" name="tipo">${opt(Object.entries(TIPO_DEUDA),t)}</select>`)}
+   ${field("dTipo","Tipo de deuda",`<select id="dTipo" name="tipo">${opt(orden,t)}</select>`)}
+   ${g("tarjeta",tarjetaCampos(d&&t==="tarjeta"?d:null))}
    ${g("unico",`<div class="frow">${field("dMontoU","Monto a pagar",`<input id="dMontoU" name="montoU" inputmode="decimal" value="${d&&t==="unico"?s:""}">`)}${field("dFecha","Fecha límite",`<input id="dFecha" type="date" name="fecha" value="${d&&d.fecha||TODAY}">`)}</div>`)}
    ${g("msi",`<div class="frow">${field("dPagoM","Pago mensual",`<input id="dPagoM" name="pagoM" inputmode="decimal" value="${d&&t==="msi"?d.pago:""}">`)}${field("dMeses","Número de meses",`<input id="dMeses" name="meses" inputmode="numeric" value="${d&&t==="msi"?d.pagosTotales:""}" placeholder="12">`)}</div>
       ${field("dHechos","Pagos ya hechos",`<input id="dHechos" name="hechosM" inputmode="numeric" value="${d&&t==="msi"?hechos(d):0}">`)}`)}
-   ${g("mensual quincenal semanal",`<div class="frow">${field("dSaldo","Saldo pendiente hoy",`<input id="dSaldo" name="saldo" inputmode="decimal" value="${d&&t!=="unico"&&t!=="msi"?s:""}">`)}${field("dPago","Pago por periodo",`<input id="dPago" name="pago" inputmode="decimal" value="${d&&t!=="unico"&&t!=="msi"?d.pago:""}">`)}</div>`)}
-   ${g("msi mensual",field("dDia","Día de pago (1–31)",`<input id="dDia" name="dia" inputmode="numeric" value="${d&&d.dia||15}">`))}
+   ${g("mensual quincenal semanal",`<div class="frow">${field("dSaldo","Deuda total hoy",`<input id="dSaldo" name="saldo" inputmode="decimal" value="${d&&["mensual","quincenal","semanal"].includes(t)?s:""}">`)}${field("dPago","Cuánto pagas cada vez",`<input id="dPago" name="pago" inputmode="decimal" value="${d&&["mensual","quincenal","semanal"].includes(t)?d.pago:""}">`)}</div>`)}
+   ${g("tarjeta msi mensual",field("dDia","Día de pago (1–31)",`<input id="dDia" name="dia" inputmode="numeric" value="${d&&d.dia||(t==="tarjeta"?30:15)}">`))}
    ${g("semanal",field("dDs","Día de la semana",`<select id="dDs" name="diaSemana">${opt(DIAS.map((x,i)=>[i,x]),d?d.diaSemana:5)}</select>`))}
    <p class="hint" id="dHint"></p>`,fd=>{
     const nombre=fd.nombre.trim();if(!nombre)return"Ponle un nombre a la deuda.";
     const rec={id:d?d.id:uid(),nombre,acreedor:fd.acreedor.trim(),tipo:fd.tipo,desde:d&&d.desde||TODAY};
-    if(fd.tipo==="unico"){const m=num(fd.montoU);if(!(m>0))return"Escribe el monto a pagar.";if(!fd.fecha)return"Elige la fecha límite.";Object.assign(rec,{pago:m,fecha:fd.fecha,montoInicial:r2(m+paidSum)})}
-    else if(fd.tipo==="msi"){const p=num(fd.pagoM),n=parseInt(fd.meses),h=parseInt(fd.hechosM)||0,dia=parseInt(fd.dia);if(!(p>0))return"Escribe el pago mensual.";if(!(n>0))return"Indica el número de meses.";if(h<0||h>n)return"Los pagos hechos deben estar entre 0 y el número de meses.";if(!(dia>=1&&dia<=31))return"El día de pago debe estar entre 1 y 31.";
-      Object.assign(rec,{pago:p,pagosTotales:n,pagosPrevios:Math.max(0,h-paidCnt),dia,montoInicial:r2(p*(n-h)+paidSum)})}
-    else{const sa=num(fd.saldo),p=num(fd.pago);if(!(sa>=0))return"Escribe el saldo pendiente.";if(!(p>0))return"Escribe cuánto pagas por periodo.";Object.assign(rec,{pago:p,montoInicial:r2(sa+paidSum)});
-      if(fd.tipo==="mensual"){const dia=parseInt(fd.dia);if(!(dia>=1&&dia<=31))return"El día de pago debe estar entre 1 y 31.";rec.dia=dia}
+    const dia=parseInt(fd.dia);
+    if(fd.tipo==="tarjeta"){const x=leerTarjeta(fd);if(typeof x==="string")return x;if(!(dia>=1&&dia<=31))return"El día de pago debe estar entre 1 y 31.";
+      Object.assign(rec,{minimo:x.minimo,noIntereses:x.noIntereses,plan:x.plan,pago:x.pago,dia,montoInicial:r2(x.saldo+paidSum-carg)});
+      S.deudas=d?S.deudas.map(y=>y.id===d.id?rec:y):[...S.deudas,rec];syncTarjeta(rec,x.limite);modify();toast("Tarjeta guardada");return}
+    if(fd.tipo==="unico"){const m=num(fd.montoU);if(!(m>0))return"Escribe el monto a pagar.";if(!fd.fecha)return"Elige la fecha límite.";Object.assign(rec,{pago:m,fecha:fd.fecha,montoInicial:r2(m+paidSum-carg)})}
+    else if(fd.tipo==="msi"){const p=num(fd.pagoM),n=parseInt(fd.meses),h=parseInt(fd.hechosM)||0;if(!(p>0))return"Escribe el pago mensual.";if(!(n>0))return"Indica el número de meses.";if(h<0||h>n)return"Los pagos hechos deben estar entre 0 y el número de meses.";if(!(dia>=1&&dia<=31))return"El día de pago debe estar entre 1 y 31.";
+      Object.assign(rec,{pago:p,pagosTotales:n,pagosPrevios:Math.max(0,h-paidCnt),dia,montoInicial:r2(p*(n-h)+paidSum-carg)})}
+    else{const sa=num(fd.saldo),p=num(fd.pago);if(!(sa>=0))return"Escribe la deuda total.";if(!(p>0))return"Escribe cuánto pagas cada vez.";Object.assign(rec,{pago:p,montoInicial:r2(sa+paidSum-carg)});
+      if(fd.tipo==="mensual"){if(!(dia>=1&&dia<=31))return"El día de pago debe estar entre 1 y 31.";rec.dia=dia}
       if(fd.tipo==="semanal")rec.diaSemana=parseInt(fd.diaSemana)}
     S.deudas=d?S.deudas.map(x=>x.id===d.id?rec:x):[...S.deudas,rec];modify();toast("Deuda guardada");
   });
   const upd=()=>{const tv=document.getElementById("dTipo").value;document.querySelectorAll("[data-for]").forEach(el=>el.hidden=!el.dataset.for.split(" ").includes(tv));
-    document.getElementById("dHint").textContent={unico:"Se programa en la quincena que corresponde a la fecha límite.",msi:"El saldo se calcula con los meses que faltan.",mensual:"Ideal para tarjetas de crédito: escribe el saldo total y lo que planeas pagar cada mes.",quincenal:"Se programa un pago en cada quincena hasta liquidar el saldo.",semanal:"Se programa un pago cada semana; una quincena puede tener 2 o 3."}[tv]+(tv==="msi"||tv==="mensual"?" Si vence entre el 15 y el 29 se cubre con la quincena del 15; si no, con la del 30.":"")};
-  document.getElementById("dTipo").onchange=upd;upd();
+    document.getElementById("dHint").textContent={tarjeta:"Se crea también la tarjeta en Cuentas con su disponible. Cada mes puedes actualizarla con tu estado de cuenta.",unico:"Se programa en la quincena que corresponde a la fecha límite.",msi:"Para compras a meses fuera de una tarjeta de crédito, por ejemplo en una tienda.",mensual:"Préstamos o créditos con un pago fijo al mes.",quincenal:"Se programa un pago en cada quincena hasta liquidar la deuda.",semanal:"Se programa un pago cada semana; una quincena puede tener 2 o 3."}[tv]+(["tarjeta","msi","mensual"].includes(tv)?" Si vence entre el 15 y el 29 se paga con la quincena del 15; si no, con la del 30.":"")};
+  document.getElementById("dTipo").onchange=upd;upd();bindPlan();
 }
 function fijoForm(f){
   openModal(f?"Editar gasto fijo":"Nuevo gasto fijo",`
@@ -921,7 +963,7 @@ function cuentaForm(c){
      ${field("cLim","Línea de crédito (límite total)",`<input id="cLim" name="limite" inputmode="decimal" value="${c&&c.limite||""}" placeholder="Ej. 40000">`)}
      ${field("cDeu","Vincular con deuda",`<select id="cDeu" name="deudaId"><option value="">No vincular</option>${opt(deudas,vinc)}<option value="__nueva">Crear deuda nueva para esta tarjeta</option></select>`)}
      <div data-cf="sinvinc">${field("cAde","Adeudo actual",`<input id="cAde" name="adeudo" inputmode="decimal" value="${c&&c.tipo==="credito"&&!c.deudaId?Math.max(0,-saldoCuenta(c)):""}" placeholder="Lo que debes hoy">`)}</div>
-     <div data-cf="nueva" class="frow">${field("cPago","Pago que harás al mes",`<input id="cPago" name="pagoNuevo" inputmode="decimal" placeholder="Ej. 2100">`)}${field("cDia","Día de pago (1–31)",`<input id="cDia" name="diaNuevo" inputmode="numeric" value="30">`)}</div>
+     <div data-cf="nueva" class="frow">${field("cPago","Pago mínimo",`<input id="cPago" name="pagoNuevo" inputmode="decimal" placeholder="Ej. 2100">`)}${field("cDia","Día de pago (1–31)",`<input id="cDia" name="diaNuevo" inputmode="numeric" value="30">`)}</div>
      <p class="hint">Al vincularla, el adeudo es el saldo de la deuda: baja con cada pago y sube con las compras que registres con la tarjeta.</p>
    </div>`,fd=>{
     const nombre=fd.nombre.trim();if(!nombre)return"Ponle un nombre a la cuenta.";
@@ -932,7 +974,7 @@ function cuentaForm(c){
       let dId=fd.deudaId;
       if(dId==="__nueva"){const a=num(fd.adeudo),pg=num(fd.pagoNuevo),dia=parseInt(fd.diaNuevo);
         if(!(a>=0))return"Escribe el adeudo actual de la tarjeta.";if(!(pg>0))return"Escribe cuánto pagarás al mes.";if(!(dia>=1&&dia<=31))return"El día de pago debe estar entre 1 y 31.";
-        const nd={id:uid(),nombre,acreedor:"Tarjeta de crédito",tipo:"mensual",pago:pg,dia,montoInicial:r2(a),desde:TODAY};S.deudas=[...S.deudas,nd];dId=nd.id}
+        const nd={id:uid(),nombre,acreedor:"",tipo:"tarjeta",minimo:pg,noIntereses:0,plan:"minimo",pago:pg,dia,montoInicial:r2(a),desde:TODAY};S.deudas=[...S.deudas,nd];dId=nd.id}
       if(dId){rec.deudaId=dId;rec.vinculoTs=c&&c.deudaId===dId&&c.vinculoTs?c.vinculoTs:Date.now()}
       else{const a=num(fd.adeudo)||0;rec.saldoInicial=-Math.max(0,a)}
     }
@@ -960,6 +1002,7 @@ document.addEventListener("click",e=>{
   if(d.editMov)return movForm(find(S.movimientos,d.editMov));
   if(d.delMov){const m=find(S.movimientos,d.delMov);return confirmBox("Eliminar movimiento",`Se eliminará "${m.nota||m.categoria}" por ${money(m.monto)}.${m.deudaId?" El saldo de la deuda se ajustará.":""}`,"Eliminar",()=>{S.movimientos=S.movimientos.filter(x=>x.id!==m.id);modify();toast("Movimiento eliminado")})}
   if(d.editDeuda)return deudaForm(find(S.deudas,d.editDeuda));
+  if(d.edo)return edoForm(find(S.deudas,d.edo));
   if(d.delDeuda){const x=find(S.deudas,d.delDeuda);return confirmBox("Eliminar deuda",`Se eliminará "${x.nombre}". Los pagos ya registrados se conservan como gastos.`,"Eliminar",()=>{S.deudas=S.deudas.filter(y=>y.id!==x.id);S.cuentas=S.cuentas.map(c=>c.deudaId===x.id?{...c,deudaId:null}:c);modify();toast("Deuda eliminada")})}
   if(d.editFijo)return fijoForm(find(S.fijos,d.editFijo));
   if(d.delFijo){const x=find(S.fijos,d.delFijo);return confirmBox("Eliminar gasto fijo",`Se eliminará "${x.nombre}" del presupuesto. Los pagos ya registrados se conservan.`,"Eliminar",()=>{S.fijos=S.fijos.filter(y=>y.id!==x.id);modify()})}
