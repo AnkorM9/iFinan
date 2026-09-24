@@ -56,6 +56,9 @@ img{max-width:100%}
   --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);
 }
 *{box-sizing:border-box}
+:root{--safe-b:max(env(safe-area-inset-bottom,0px),8px);--tab-h:60px}
+@media (display-mode: standalone){:root{--safe-b:max(env(safe-area-inset-bottom,0px),26px)}}
+html.standalone{--safe-b:max(env(safe-area-inset-bottom,0px),26px)}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
@@ -66,7 +69,7 @@ button{cursor:pointer}
 h1,h2,h3{margin:0;font-weight:600;text-wrap:balance}
 
 /* ---------- estructura ---------- */
-.app{max-width:520px;margin:0 auto;padding-inline:18px;padding-top:calc(env(safe-area-inset-top,0px) + 14px);padding-bottom:calc(env(safe-area-inset-bottom,0px) + 104px)}
+.app{max-width:520px;margin:0 auto;padding-inline:18px;padding-top:calc(env(safe-area-inset-top,0px) + 14px);padding-bottom:calc(var(--safe-b) + var(--tab-h) + 40px)}
 .view{display:flex;flex-direction:column;gap:18px}
 .topbar{display:grid;grid-template-columns:40px 1fr 40px;align-items:center;min-height:44px}
 .topbar h1{text-align:center;font-size:1.05rem;font-weight:600}
@@ -260,15 +263,15 @@ h1,h2,h3{margin:0;font-weight:600;text-wrap:balance}
 .banner .btn{align-self:flex-start}
 
 /* barra inferior */
-.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:saturate(1.6) blur(18px);-webkit-backdrop-filter:saturate(1.6) blur(18px);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--surface);background:color-mix(in srgb,var(--surface) 90%,transparent);backdrop-filter:saturate(1.6) blur(18px);-webkit-backdrop-filter:saturate(1.6) blur(18px);border-top:1px solid var(--line);padding-bottom:var(--safe-b)}
 .tabbar .in{max-width:520px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
-.tabbar button{background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 0 8px;font-size:.68rem;color:var(--faint);font-weight:500}
+.tabbar button{background:none;border:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:var(--tab-h);padding:6px 0 4px;font-size:.68rem;color:var(--faint);font-weight:500}
 .tabbar button svg{width:23px;height:23px}
 .tabbar button[aria-current="page"]{color:var(--primary)}
 
 /* modal tipo hoja */
 .overlay{position:fixed;inset:0;background:rgba(20,14,40,.45);display:flex;align-items:flex-end;justify-content:center;z-index:50}
-.modal{background:var(--surface);border-radius:24px 24px 0 0;width:min(520px,100%);max-height:92%;overflow:auto;padding:10px 20px calc(20px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px}
+.modal{background:var(--surface);border-radius:24px 24px 0 0;width:min(520px,100%);max-height:92%;overflow:auto;padding:10px 20px calc(16px + var(--safe-b));display:flex;flex-direction:column;gap:14px}
 .modal:before{content:"";width:40px;height:5px;border-radius:9px;background:var(--line);align-self:center}
 @media (min-width:700px){.overlay{align-items:center}.modal{border-radius:24px}}
 .modal h2{font-size:1.15rem}
@@ -284,13 +287,14 @@ h1,h2,h3{margin:0;font-weight:600;text-wrap:balance}
 .mfoot{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
 .mfoot .btn{padding:12px}
 .err{color:var(--out);font-size:.85rem;margin:0}
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(88px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:99px;font-size:.88rem;z-index:60;white-space:nowrap}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--safe-b) + var(--tab-h) + 14px);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:99px;font-size:.88rem;z-index:60;white-space:nowrap}
 .grid{display:grid;gap:12px}
 @media (prefers-reduced-motion:no-preference){.bar i{transition:width .4s ease}.view{animation:fadein .25s ease}@keyframes fadein{from{opacity:.4;transform:translateY(4px)}to{opacity:1;transform:none}}}
 </style>
 
 </head>
 <body>
+<script>try{if(window.navigator.standalone||matchMedia("(display-mode: standalone)").matches)document.documentElement.classList.add("standalone")}catch(e){}</script>
 <div class="app"><main id="view"></main></div>
 <nav class="tabbar" id="tabbar" aria-label="Secciones"></nav>
 <input type="file" id="impFile" accept=".json,application/json" hidden>
