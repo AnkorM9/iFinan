@@ -1,6 +1,6 @@
 // Mis Finanzas — funcionamiento sin internet.
 // Al publicar una nueva versión de index.html, cambia el número de VERSION.
-const VERSION = "v3";
+const VERSION = "v4";
 const APP = "mis-finanzas-" + VERSION;
 const FONTS = "mis-finanzas-fuentes";
 const SHELL = ["./", "index.html", "manifest.webmanifest",
